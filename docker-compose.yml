@@ -1,0 +1,71 @@
+version: '3.8'
+services:
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
+        container_name: elasticsearch
+        environment:
+            bootstrap.memory_lock: "true"
+            cluster.name: docker-cluster
+            cluster.routing.allocation.disk.threshold_enabled: "false"
+            discovery.type: single-node
+            ES_JAVA_OPTS: "-Xms2g -Xmx2g"
+        ulimits:
+            memlock:
+                soft: -1
+                hard: -1
+        ports:
+            - 9200:9200
+        networks:
+            - elk
+        healthcheck:
+            interval: 10s
+            retries: 20
+            test: curl -s http://localhost:9200/_cluster/health | grep -vq '"Status":"red"'
+
+    kibana:
+        image: docker.elastic.co/kibana/kibana:7.14.0
+        container_name: kibana
+        depends_on:
+            - elasticsearch
+        environment:
+            ELASTICSEARCH_URL: http://elasticsearch:9200
+            ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+        ports:
+            - "5601:5601"
+        networks:
+            - elk
+        healthcheck:
+            interval: 10s
+            retries: 20
+            test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:5601/api/status
+
+    master:
+        container_name: cribl-master
+        depends_on:
+            - elasticsearch
+        image: cribl/cribl:3.1.0
+        environment:
+            - CRIBL_DIST_MODE=master
+            - CRIBL_DIST_MASTER_URL=tcp://criblmaster@0.0.0.0:4200
+            - CRIBL_VOLUME_DIR=/opt/cribl/config-volume
+        ports:
+            - "19000:9000"
+        # volumes:
+        #     - "./cribl-config:/opt/cribl/config-volume"
+        networks:
+            - elk
+    worker:
+        container_name: cribl-worker
+        image: cribl/cribl:3.1.0
+        depends_on: 
+            - master
+        environment:
+            - CRIBL_DIST_MODE=worker
+            - CRIBL_DIST_MASTER_URL=tcp://criblmaster@master:4200
+        ports:
+            - 9000
+        networks:
+            - elk
+networks:
+    elk:
+        driver: bridge
