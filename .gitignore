@@ -1,0 +1,3 @@
+/cribl-config
+*/logs/*
+!*.gitkeep
