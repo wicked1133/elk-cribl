@@ -7,9 +7,9 @@ a docker-compose project to run a full elk stack including cribl/logstash
 
 after building and all containers are up and running, the services are available on your local machine
 
-Kibana: http://localhost:5601
-Elasticsearch: http://localhost:9200
-Cribl: http://localhost:19000
+- Kibana: http://localhost:5601
+- Elasticsearch: http://localhost:9200
+- Cribl: http://localhost:19000
 
 1. Login to cribl with admin:admin and enable the in_elastic source on port 10080
 2. Setup a destination to elasticsearch
