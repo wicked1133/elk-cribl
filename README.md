@@ -18,3 +18,9 @@ after building and all containers are up and running, the services are available
 
 and you should be good to go!
 for more information see the documentation: https://docs.cribl.io/docs/sources-elastic
+
+## Addition containers
+
+There are two addition container images running
+- nginx (to generate logfiles)
+- fakelogs (generates Logfile every 2 seconds) --> see docker hub for more information: https://hub.docker.com/r/mingrammer/flog
