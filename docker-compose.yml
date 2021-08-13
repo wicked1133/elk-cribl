@@ -1,7 +1,7 @@
 version: '3.8'
 services:
     elasticsearch:
-        image: docker.elastic.co/elasticsearch/elasticsearch:7.14.0
+        image: elastic-docker-remote.artifactory.swisscom.com/elasticsearch/elasticsearch:7.14.0
         container_name: elasticsearch
         environment:
             bootstrap.memory_lock: "true"
@@ -14,7 +14,7 @@ services:
                 soft: -1
                 hard: -1
         ports:
-            - 9200:9200
+            - "9200:9200"
         networks:
             - elk
         healthcheck:
@@ -23,7 +23,7 @@ services:
             test: curl -s http://localhost:9200/_cluster/health | grep -vq '"Status":"red"'
 
     kibana:
-        image: docker.elastic.co/kibana/kibana:7.14.0
+        image: elastic-docker-remote.artifactory.swisscom.com/kibana/kibana:7.14.0
         container_name: kibana
         depends_on:
             - elasticsearch
@@ -41,8 +41,6 @@ services:
 
     master:
         container_name: cribl-master
-        depends_on:
-            - elasticsearch
         image: cribl/cribl:3.1.0
         environment:
             - CRIBL_DIST_MODE=master
@@ -50,8 +48,8 @@ services:
             - CRIBL_VOLUME_DIR=/opt/cribl/config-volume
         ports:
             - "19000:9000"
-        # volumes:
-        #     - "./cribl-config:/opt/cribl/config-volume"
+        volumes:
+            - "./cribl-config:/opt/cribl/config-volume"
         networks:
             - elk
     worker:
@@ -63,9 +61,45 @@ services:
             - CRIBL_DIST_MODE=worker
             - CRIBL_DIST_MASTER_URL=tcp://criblmaster@master:4200
         ports:
+            - "10080:10080"
             - 9000
         networks:
             - elk
+    filebeat:
+        container_name: filebeat
+        depends_on:
+            - master
+        build:
+            context: ./filebeat 
+            dockerfile: Dockerfile
+        environment:
+            ELASTICSEARCH_HOST: localhost:10080
+        ports:
+            - 9200
+        volumes:
+            - ./filebeat/logs:/usr/share/filebeat/log
+            # - ./filebeat/logs:/usr/share/filebeat/logs 
+        networks:
+            - elk
+        command: ["--strict.perms=false"]
+    nginx:
+        container_name: nginx
+        image: nginx:latest 
+        volumes:
+            - ./filebeat/logs:/var/log/nginx/
+        ports:
+            - "8080:80"
+        networks:
+            - elk
+    fakelogs:
+        container_name: fakelogs
+        image: mingrammer/flog:latest
+        volumes:
+            - ./filebeat/logs:/fake/logs
+        command: flog -f apache_combined -t log -w -o /fake/logs/fake.log -l -d 2s
+        networks:
+            - elk
+
 networks:
     elk:
         driver: bridge
